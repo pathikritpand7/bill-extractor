@@ -13,7 +13,7 @@ from typing import TypedDict
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, END
 
@@ -39,17 +39,14 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 # Use this client when creating the vector store
 try:
-    feedback_db = Chroma(
+    feedback_db = FAISS(
         embedding_function=embeddings,
-        persist_directory="./feedback_db",
-        client_settings={
-            "chroma_db_impl": "duckdb+parquet",
-            "persist_directory": "./feedback_db"
-        }
+        index_path="./feedback_db/faiss_index"  # folder to store FAISS index
     )
 except Exception as e:
-    st.warning(f"Chroma init failed: {e}")
+    st.warning(f"FAISS init failed: {e}")
     feedback_db = None
+
 
 
 task_storage = {}
