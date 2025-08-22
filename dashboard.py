@@ -141,31 +141,32 @@ Bill text:
 
 
 def submit_feedback(task_id, feedback_type, reason=""):
+    global feedback_db   # <--- add this
+
     if "tasks" not in st.session_state or task_id not in st.session_state.tasks:
         return {"error": "Task expired"}
 
     task_data = st.session_state.tasks[task_id]
 
-    if feedback_db:
-        try:
-            doc = Document(
-                page_content=task_data["content"][:500],
-                metadata={
-                    "task_id": task_id,
-                    "feedback": feedback_type,
-                    "reason": reason,
-                    "timestamp": task_data["timestamp"].isoformat(),
-                },
-            )
-            st.session_state.feedback_docs.append(doc)
-            feedback_db = get_feedback_db()
-            feedback_db.add_documents([doc])
-        except Exception as e:
-            return {"error": str(e)}
-
+    try:
+        doc = Document(
+            page_content=task_data["content"][:500],
+            metadata={
+                "task_id": task_id,
+                "feedback": feedback_type,
+                "reason": reason,
+                "timestamp": task_data["timestamp"].isoformat(),
+            },
+        )
+        st.session_state.feedback_docs.append(doc)
+        feedback_db = get_feedback_db()   # now modifies the global
+        feedback_db.add_documents([doc])
+    except Exception as e:
+        return {"error": str(e)}
 
     del st.session_state.tasks[task_id]
     return {"message": "Feedback stored"}
+
 
 # ==============================
 # Streamlit UI
