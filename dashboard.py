@@ -17,7 +17,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, END
 import warnings
-warnings.filterwarnings("ignore", message=".*unsupported version of sqlite3.*")
+warnings.filterwarnings("ignore", message="Chroma init failed: [91mYour system has an unsupported version of sqlite3. Chroma requires sqlite3 ≥ 3.35.0.[0m [94mPlease visit https://docs.trychroma.com/troubleshooting#sqlite to learn how to upgrade.[0m")
 
 
 # ==============================
