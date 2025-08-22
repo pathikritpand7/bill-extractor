@@ -51,11 +51,10 @@ def get_feedback_db():
         if docs:
             feedback_db = FAISS.from_documents(docs, embeddings)
         else:
-            # Initialize empty FAISS index with a dummy doc
-            dummy_doc = Document(page_content="init", metadata={})
+            
+            dummy_doc = Document(page_content="init", metadata={}, id="dummy_0")
             feedback_db = FAISS.from_documents([dummy_doc], embeddings)
-            # Remove dummy doc from memory later
-            feedback_db.docstore.delete(0)
+            feedback_db.docstore.delete(["dummy_0"])
     return feedback_db
 
 # Load existing FAISS index if present
