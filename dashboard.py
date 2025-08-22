@@ -37,15 +37,26 @@ os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-# Use this client when creating the vector store
-try:
-    feedback_db = FAISS(
-        embedding_function=embeddings
-    )
-except Exception as e:
-    st.warning(f"FAISS init failed: {e}")
-    feedback_db = None
+# Example: create empty feedback DB
+feedback_db = None
 
+if "feedback_docs" not in st.session_state:
+    st.session_state.feedback_docs = []
+
+def get_feedback_db():
+    global feedback_db
+    if feedback_db is None:
+        # Use stored documents to create FAISS index
+        docs = st.session_state.feedback_docs
+        if docs:
+            feedback_db = FAISS.from_documents(docs, embeddings)
+        else:
+            # Initialize empty FAISS index with a dummy doc
+            dummy_doc = Document(page_content="init", metadata={})
+            feedback_db = FAISS.from_documents([dummy_doc], embeddings)
+            # Remove dummy doc from memory later
+            feedback_db.docstore.delete(0)
+    return feedback_db
 
 
 task_storage = {}
@@ -146,9 +157,12 @@ def submit_feedback(task_id, feedback_type, reason=""):
                     "timestamp": task_data["timestamp"].isoformat(),
                 },
             )
+            st.session_state.feedback_docs.append(doc)
+            feedback_db = get_feedback_db()
             feedback_db.add_documents([doc])
         except Exception as e:
             return {"error": str(e)}
+
 
     del st.session_state.tasks[task_id]
     return {"message": "Feedback stored"}
