@@ -16,13 +16,16 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, END
-from chromadb import Client
 from chromadb.config import Settings
+from chromadb import Client
 
-client = Client(Settings(
+# Initialize Chroma client with DuckDB+Parquet
+chroma_client = Client(Settings(
     chroma_db_impl="duckdb+parquet",
-    persist_directory=".chromadb"  # optional, for persistence
+    persist_directory=".chromadb"  # optional, persistence folder
 ))
+
+
 # ==============================
 # Setup LLM + DB
 # ==============================
@@ -43,11 +46,17 @@ os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
+# Use this client when creating the vector store
 try:
-    feedback_db = Chroma(embedding_function=embeddings, persist_directory="./feedback_db")
+    feedback_db = Chroma(
+        embedding_function=embeddings,
+        client=chroma_client,             # pass the custom client
+        persist_directory="./feedback_db" # optional
+    )
 except Exception as e:
     st.warning(f"Chroma init failed: {e}")
     feedback_db = None
+
 
 task_storage = {}
 
