@@ -7,3 +7,4 @@ langchain_openai
 grandalf
 streamlit-aggrid
 chromadb
+pysqlite3-binary
