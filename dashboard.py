@@ -205,6 +205,8 @@ if pdfs and st.button("Extract Bills"):
                 "filename": pdf.name,
                 "raw_json": data,
                 "editable_json": data,
+                "content": content,  # Add this line
+                "timestamp": datetime.now()  # optional, consistent with extract_bill_data
             }
 
 if not st.session_state.get("tasks"):
