@@ -150,16 +150,21 @@ Bill text:
 
 
 def submit_feedback(task_id, feedback_type, reason=""):
-    global feedback_db   # <-- Add this line
+    global feedback_db
     if "tasks" not in st.session_state or task_id not in st.session_state.tasks:
         return {"error": "Task expired"}
 
     task_data = st.session_state.tasks[task_id]
 
+    # Use 'content' safely
+    content_text = task_data.get("content", "")
+    if not content_text:
+        return {"error": "'content' missing in task_data"}
+
     if feedback_db:
         try:
             doc = Document(
-                page_content=task_data["content"][:500],
+                page_content=content_text[:500],
                 metadata={
                     "task_id": task_id,
                     "feedback": feedback_type,
@@ -168,14 +173,15 @@ def submit_feedback(task_id, feedback_type, reason=""):
                 },
             )
             st.session_state.feedback_docs.append(doc)
-            feedback_db = get_feedback_db()  # This updates global feedback_db
+            feedback_db = get_feedback_db()
             feedback_db.add_documents([doc])
-            feedback_db.save_local("./feedback_db")  # optional: persist changes
+            feedback_db.save_local("./feedback_db")
         except Exception as e:
             return {"error": str(e)}
 
     del st.session_state.tasks[task_id]
     return {"message": "Feedback stored"}
+
 
 
 # ==============================
