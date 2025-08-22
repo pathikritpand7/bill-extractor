@@ -57,15 +57,19 @@ def get_feedback_db():
             feedback_db.docstore.delete(["dummy_0"])
     return feedback_db
 
-# Load existing FAISS index if present, else create new
 try:
     if os.path.exists("./feedback_db") and os.listdir("./feedback_db"):
-        feedback_db = FAISS.load_local("./feedback_db", embeddings)
+        feedback_db = FAISS.load_local(
+            "./feedback_db",
+            embeddings,
+            allow_dangerous_deserialization=True  # trust your own saved index
+        )
     else:
         feedback_db = get_feedback_db()
 except Exception as e:
     st.warning(f"Could not load existing FAISS index: {e}")
     feedback_db = get_feedback_db()
+
 
 # Load existing FAISS index if present
 if os.path.exists("./feedback_db"):
