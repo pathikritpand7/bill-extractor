@@ -8,3 +8,5 @@ grandalf
 streamlit-aggrid
 chromadb
 pysqlite3-binary
+faiss-cpu
+
