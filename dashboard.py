@@ -16,14 +16,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langgraph.graph import StateGraph, END
-from chromadb.config import Settings
-from chromadb import Client
-
-# Initialize Chroma client with DuckDB+Parquet
-chroma_client = Client(Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory=".chromadb"  # optional, persistence folder
-))
 
 # ==============================
 # Setup LLM + DB
@@ -49,8 +41,11 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 try:
     feedback_db = Chroma(
         embedding_function=embeddings,
-        client=chroma_client,             # pass the custom client
-        persist_directory="./feedback_db" # optional
+        persist_directory="./feedback_db",
+        client_settings={
+            "chroma_db_impl": "duckdb+parquet",
+            "persist_directory": "./feedback_db"
+        }
     )
 except Exception as e:
     st.warning(f"Chroma init failed: {e}")
