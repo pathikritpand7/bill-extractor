@@ -40,8 +40,7 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 # Use this client when creating the vector store
 try:
     feedback_db = FAISS(
-        embedding_function=embeddings,
-        index_path="./feedback_db/faiss_index"  # folder to store FAISS index
+        embedding_function=embeddings
     )
 except Exception as e:
     st.warning(f"FAISS init failed: {e}")
