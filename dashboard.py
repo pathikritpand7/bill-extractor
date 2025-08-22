@@ -58,6 +58,15 @@ def get_feedback_db():
             feedback_db.docstore.delete(0)
     return feedback_db
 
+# Load existing FAISS index if present
+if os.path.exists("./feedback_db"):
+    feedback_db = FAISS.load_local("./feedback_db", embeddings)
+else:
+    feedback_db = get_feedback_db()
+
+# Optional: immediately save the index folder if you want
+feedback_db.save_local("./feedback_db")
+
 
 task_storage = {}
 
@@ -141,32 +150,31 @@ Bill text:
 
 
 def submit_feedback(task_id, feedback_type, reason=""):
-    global feedback_db   # <--- add this
-
     if "tasks" not in st.session_state or task_id not in st.session_state.tasks:
         return {"error": "Task expired"}
 
     task_data = st.session_state.tasks[task_id]
 
-    try:
-        doc = Document(
-            page_content=task_data["content"][:500],
-            metadata={
-                "task_id": task_id,
-                "feedback": feedback_type,
-                "reason": reason,
-                "timestamp": task_data["timestamp"].isoformat(),
-            },
-        )
-        st.session_state.feedback_docs.append(doc)
-        feedback_db = get_feedback_db()   # now modifies the global
-        feedback_db.add_documents([doc])
-    except Exception as e:
-        return {"error": str(e)}
+    if feedback_db:
+        try:
+            doc = Document(
+                page_content=task_data["content"][:500],
+                metadata={
+                    "task_id": task_id,
+                    "feedback": feedback_type,
+                    "reason": reason,
+                    "timestamp": task_data["timestamp"].isoformat(),
+                },
+            )
+            st.session_state.feedback_docs.append(doc)
+            feedback_db = get_feedback_db()
+            feedback_db.add_documents([doc])
+        except Exception as e:
+            return {"error": str(e)}
+
 
     del st.session_state.tasks[task_id]
     return {"message": "Feedback stored"}
-
 
 # ==============================
 # Streamlit UI
