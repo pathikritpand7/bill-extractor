@@ -150,6 +150,7 @@ Bill text:
 
 
 def submit_feedback(task_id, feedback_type, reason=""):
+    global feedback_db   # <-- Add this line
     if "tasks" not in st.session_state or task_id not in st.session_state.tasks:
         return {"error": "Task expired"}
 
@@ -167,14 +168,15 @@ def submit_feedback(task_id, feedback_type, reason=""):
                 },
             )
             st.session_state.feedback_docs.append(doc)
-            feedback_db = get_feedback_db()
+            feedback_db = get_feedback_db()  # This updates global feedback_db
             feedback_db.add_documents([doc])
+            feedback_db.save_local("./feedback_db")  # optional: persist changes
         except Exception as e:
             return {"error": str(e)}
 
-
     del st.session_state.tasks[task_id]
     return {"message": "Feedback stored"}
+
 
 # ==============================
 # Streamlit UI
