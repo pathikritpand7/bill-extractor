@@ -1,0 +1,9 @@
+flask
+flask_cors
+pdfplumber
+langchain_community
+langgraph
+langchain_openai
+grandalf
+streamlit-aggrid
+chromadb
