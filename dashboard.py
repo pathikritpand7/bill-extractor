@@ -331,12 +331,15 @@ for idx, bill in enumerate(st.session_state.last_jsons):
         with colB:
             if not st.session_state.edit_mode[idx] and st.button("✏️ Edit", key=f"edit_{idx}"):
                 st.session_state.edit_mode[idx] = True
-                st.experimental_rerun()
+                # Remove st.experimental_rerun()
+                st.success(f"Editing enabled for Bill {bill.get('bill_number', '')}")
+
         with colC:
             if st.session_state.edit_mode[idx] and st.button("💾 Save", key=f"save_{idx}"):
                 st.session_state.edit_mode[idx] = False
                 st.success(f"Bill {bill.get('bill_number', '')} updated!")
-                st.experimental_rerun()
+                # Remove st.experimental_rerun()
+
 
     st.divider()
 
