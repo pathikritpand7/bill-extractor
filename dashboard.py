@@ -325,22 +325,20 @@ for idx, bill in enumerate(st.session_state.last_jsons):
                 total_price_with_tax = st.text_input("Total Price With Tax", str(item.get("total_price_with_tax", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"tpwt_{idx}_{j}", label_visibility="collapsed")
 
         # Action buttons
-        # Action buttons
-        colA, colB, colC = st.columns([1, 5, 1])  # More space in middle to push Save right
+        colA, colB, colC = st.columns([1, 1, 1])
         with colA:
-            st.session_state.post_flag[idx] = st.checkbox(
-                "Select for Posting", value=st.session_state.post_flag[idx], key=f"post_{idx}"
-            )
+            st.session_state.post_flag[idx] = st.checkbox("Check", key=f"post_{idx}", value=st.session_state.post_flag[idx])
         with colB:
-            if not st.session_state.edit_mode[idx] and st.button("✏️ Edit", key=f"edit_{idx}"):
-                st.session_state.edit_mode[idx] = True
-                st.success(f"Editing enabled for Bill {bill.get('bill_number', '')}")
+            if not st.session_state.edit_mode[idx]:
+                if st.button("✏️ Edit", key=f"edit_{idx}"):
+                    st.session_state.edit_mode[idx] = True
+                    st.rerun()
         with colC:
-            st.markdown("<div style='text-align: right;'>", unsafe_allow_html=True)
-            if st.session_state.edit_mode[idx] and st.button("💾 Save", key=f"save_{idx}"):
-                st.session_state.edit_mode[idx] = False
-                st.success(f"Bill {bill.get('bill_number', '')} updated!")
-            st.markdown("</div>", unsafe_allow_html=True)
+            if st.session_state.edit_mode[idx]:
+                if st.button("💾 Save", key=f"save_{idx}"):
+                    st.session_state.edit_mode[idx] = False
+                    st.success(f"Bill {bill['bill_number']} updated!")
+                    st.rerun()
 
 
 
@@ -353,7 +351,7 @@ if st.button("🚀 Post Selected Bills"):
     selected_bills = [st.session_state.last_jsons[i] for i, v in st.session_state.post_flag.items() if v]
     if selected_bills:
         st.success(f"Posted {len(selected_bills)} bill(s) successfully!")
-        st.json(selected_bills)
+        #st.json(selected_bills)
     else:
         st.warning("No bills selected for posting!")
 
