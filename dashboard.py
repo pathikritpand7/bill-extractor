@@ -187,73 +187,196 @@ def submit_feedback(task_id, feedback_type, reason=""):
 # ==============================
 # Streamlit UI
 # ==============================
+import streamlit as st
+from datetime import datetime
+from typing import TypedDict
+import uuid
+import os
+import json
+
+# -----------------------------
+# Import your backend functions
+# -----------------------------
+# from your_backend_module import read_pdf_content, extract_bill_data, submit_feedback, safe_float
+# For this snippet, assume they are already defined in the same script
+
+# -----------------------------
+# Streamlit Page Setup
+# -----------------------------
 st.set_page_config(page_title="Bill Extractor", page_icon="📄", layout="wide")
-st.title("📄 Bill Extractor — Table View + Feedback")
+st.title("📄 Bill Extractor")
 
-if "tasks" not in st.session_state:
-    st.session_state.tasks = {}
+# -----------------------------
+# Session State Initialization
+# -----------------------------
+if "last_jsons" not in st.session_state:
+    st.session_state.last_jsons = []
 
-pdfs = st.file_uploader("Upload PDF(s)", type=["pdf"], accept_multiple_files=True)
+if "task_ids" not in st.session_state:
+    st.session_state.task_ids = []
 
-if pdfs and st.button("Extract Bills"):
-    st.session_state.tasks = {}
-    for pdf in pdfs[:3]:
-        with st.spinner(f"Processing {pdf.name}..."):
-            content = read_pdf_content(pdf)
-            data = extract_bill_data(content)
-            st.session_state.tasks[data["task_id"]] = {
-                "filename": pdf.name,
-                "raw_json": data,
-                "editable_json": data,
-                "content": content,  # Add this line
-                "timestamp": datetime.now()  # optional, consistent with extract_bill_data
-            }
+if "task_id" not in st.session_state:
+    st.session_state.task_id = None
 
-if not st.session_state.get("tasks"):
-    # Show welcome card
+if "edit_mode" not in st.session_state:
+    st.session_state.edit_mode = {}
+
+if "post_flag" not in st.session_state:
+    st.session_state.post_flag = {}
+
+# -----------------------------
+# Upload PDFs
+# -----------------------------
+st.header("Upload PDF(s)")
+pdfs = st.file_uploader("Choose up to 5 PDFs", type=["pdf"], accept_multiple_files=True)
+
+if pdfs and st.button("Extract bills"):
+    st.session_state.last_jsons = []
+    st.session_state.task_ids = []
+    with st.spinner("Extracting bills..."):
+        for pdf in pdfs[:5]:
+            try:
+                pdf_text = read_pdf_content(pdf)
+                data = extract_bill_data(pdf_text)
+                st.session_state.last_jsons.append(data)
+                st.session_state.task_ids.append(data.get("task_id"))
+                st.success(f"✅ Extracted successfully: {pdf.name}")
+                if data.get("task_id"):
+                    st.session_state.task_id = data["task_id"]
+            except Exception as e:
+                st.error(f"❌ Extraction failed for {pdf.name}: {str(e)}")
+
+# -----------------------------
+# Initialize edit/post states
+# -----------------------------
+for idx in range(len(st.session_state.last_jsons)):
+    if idx not in st.session_state.edit_mode:
+        st.session_state.edit_mode[idx] = False
+    if idx not in st.session_state.post_flag:
+        st.session_state.post_flag[idx] = False
+
+# -----------------------------
+# Bill Viewer & Editor
+# -----------------------------
+st.header("📑 Bill Viewer & Editor")
+
+for idx, bill in enumerate(st.session_state.last_jsons):
     with st.container():
-        st.markdown(
-            """
-            <div style="
-                padding: 30px; 
-                border-radius: 15px; 
-                box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-                background-color: white; 
-                text-align: center;">
-                <h3 style="color:#444;">👋 Welcome to Bill Extractor</h3>
-                <p style="color:#666; font-size:16px;">
-                    Please upload & extract a bill to get started.<br>
-                    After that, you can review, edit, and send feedback here.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-else:
-    for task_id, task in st.session_state.tasks.items():
-        st.subheader(f"📄 {task['filename']} (Task ID: {task_id})")
+        st.subheader(f"Bill #{idx+1} - {bill.get('bill_number', 'N/A')}")
 
-        df = pd.DataFrame(task["editable_json"].items(), columns=["Field", "Value"])
-        df["Value"] = df["Value"].astype(str)
-        st.data_editor(df, use_container_width=True, disabled=["Field"])
+        # Edit mode toggle
+        if st.session_state.edit_mode[idx]:
+            st.info("Editing Mode Enabled ✏️")
+        else:
+            st.caption("Read-only mode 🔒")
 
-        # ✅ Put Post button + checkbox side by side
-        col1, col2 = st.columns([1, 3])
+        # Invoice details
+        st.markdown("Invoice Details")
+        col1, col2 = st.columns(2)
         with col1:
-            st.button("Post", key=f"post_{task_id}")
+            bill_date = st.text_input(
+                "Bill Date", bill.get("bill_date", ""),
+                disabled=not st.session_state.edit_mode[idx], key=f"date_{idx}"
+            )
+            bill_number = st.text_input(
+                "Bill Number", bill.get("bill_number", ""),
+                disabled=not st.session_state.edit_mode[idx], key=f"num_{idx}"
+            )
+            biller_name = st.text_input(
+                "Biller Name", bill.get("biller_name", ""),
+                disabled=not st.session_state.edit_mode[idx], key=f"biller_{idx}"
+            )
         with col2:
-            st.checkbox("Confirm", key=f"confirm_{task_id}")
+            buyer_name = st.text_input(
+                "Buyer Name", bill.get("buyer_name", ""),
+                disabled=not st.session_state.edit_mode[idx], key=f"buyer_{idx}"
+            )
+            cumulative_tax = st.text_input(
+                "Cumulative Tax", str(bill.get("cumulative_tax", 0.0)),
+                disabled=not st.session_state.edit_mode[idx], key=f"tax_{idx}"
+            )
+            cumulative_total = st.text_input(
+                "Cumulative Total", str(bill.get("cumulative_total", 0.0)),
+                disabled=not st.session_state.edit_mode[idx], key=f"total_{idx}"
+            )
 
+        # Items table
+        st.markdown("Bill Items")
+        headers = ["Item Name", "Qty", "Per Unit Cost", "Tax Rate", "Total Price", "Total Tax", "Total Price With Tax"]
+        cols = st.columns([1, 1, 1, 1, 1, 1, 1])
+        for col, h in zip(cols, headers):
+            col.markdown(f"**{h}**")
 
-if st.session_state.tasks:
-    choices = {f"{v['filename']} ({k})": k for k, v in st.session_state.tasks.items()}
-    choice = st.selectbox("Select file", list(choices.keys()))
-    task_id = choices[choice]
-    feedback_type = st.radio("Feedback", ["positive", "negative"], horizontal=True)
-    reason = st.text_input("Reason (optional)")
+        for j, item in enumerate(bill.get("items", [])):
+            c1, c2, c3, c4, c5, c6, c7 = st.columns([1, 1, 1, 1, 1, 1, 1])
+            with c1:
+                item_name = st.text_input("Item Name", item.get("item_name", ""), disabled=not st.session_state.edit_mode[idx], key=f"name_{idx}_{j}", label_visibility="collapsed")
+            with c2:
+                count = st.text_input("Qty", str(item.get("count", 1)), disabled=not st.session_state.edit_mode[idx], key=f"count_{idx}_{j}", label_visibility="collapsed")
+            with c3:
+                per_unit_cost = st.text_input("Per Unit Cost", str(item.get("per_unit_cost", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"price_{idx}_{j}", label_visibility="collapsed")
+            with c4:
+                tax_rate = st.text_input("Tax Rate", str(item.get("tax_rate", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"taxrate_{idx}_{j}", label_visibility="collapsed")
+            with c5:
+                total_price = st.text_input("Total Price", str(item.get("total_price", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"tprice_{idx}_{j}", label_visibility="collapsed")
+            with c6:
+                total_tax = st.text_input("Total Tax", str(item.get("total_tax", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"ttax_{idx}_{j}", label_visibility="collapsed")
+            with c7:
+                total_price_with_tax = st.text_input("Total Price With Tax", str(item.get("total_price_with_tax", 0.0)), disabled=not st.session_state.edit_mode[idx], key=f"tpwt_{idx}_{j}", label_visibility="collapsed")
 
-    if st.button("Submit feedback"):
-        result = submit_feedback(task_id, feedback_type, reason)
-        st.json(result)
-        if "message" in result:
-            st.session_state.tasks.pop(task_id, None)
+        # Action buttons
+        colA, colB, colC = st.columns(3)
+        with colA:
+            st.session_state.post_flag[idx] = st.checkbox("Select for Posting", value=st.session_state.post_flag[idx], key=f"post_{idx}")
+        with colB:
+            if not st.session_state.edit_mode[idx] and st.button("✏️ Edit", key=f"edit_{idx}"):
+                st.session_state.edit_mode[idx] = True
+                st.experimental_rerun()
+        with colC:
+            if st.session_state.edit_mode[idx] and st.button("💾 Save", key=f"save_{idx}"):
+                st.session_state.edit_mode[idx] = False
+                st.success(f"Bill {bill.get('bill_number', '')} updated!")
+                st.experimental_rerun()
+
+    st.divider()
+
+# -----------------------------
+# Post Selected Bills
+# -----------------------------
+if st.button("🚀 Post Selected Bills"):
+    selected_bills = [st.session_state.last_jsons[i] for i, v in st.session_state.post_flag.items() if v]
+    if selected_bills:
+        st.success(f"Posted {len(selected_bills)} bill(s) successfully!")
+        st.json(selected_bills)
+    else:
+        st.warning("No bills selected for posting!")
+
+# -----------------------------
+# Feedback Section
+# -----------------------------
+st.header("Send Feedback")
+disabled = st.session_state.task_id is None
+if disabled:
+    st.info("Upload a PDF first (task_id required). Tasks expire after ~5 minutes.")
+
+col1, col2 = st.columns([1, 2])
+with col1:
+    feedback_type = st.radio("Feedback", ["positive", "negative"], horizontal=True, disabled=disabled)
+with col2:
+    reason = st.text_input("Reason (optional)", disabled=disabled)
+
+if st.button("Submit Feedback", disabled=disabled):
+    payload = {
+        "task_id": st.session_state.task_id,
+        "feedback": feedback_type,
+        "reason": reason or ""
+    }
+    resp_json = submit_feedback(payload["task_id"], payload["feedback"], payload["reason"])
+    st.subheader("Feedback Result")
+    st.json(resp_json)
+    if "error" not in resp_json:
+        st.success("✅ Feedback sent. Task closed.")
+        st.session_state.task_id = None
+    else:
+        st.error(f"❌ {resp_json['error']}")
+
